@@ -1,6 +1,5 @@
 // Board and hardware specific configuration
 #define MICROPY_HW_BOARD_NAME "HMPLC Core2350"
-#define MICROPY_HW_FLASH_STORAGE_BYTES (PICO_FLASH_SIZE_BYTES - 1024 * 1024)
 
 #define MICROPY_HW_UART0_TX (2)
 #define MICROPY_HW_UART0_RX (3)
@@ -14,6 +13,3 @@
 
 #define MICROPY_HW_I2C_NO_DEFAULT_PINS (1)
 #define MICROPY_HW_SPI_NO_DEFAULT_PINS (1)
-
-#define MICROPY_HW_PSRAM_CS_PIN (7)
-#define MICROPY_HW_ENABLE_PSRAM (1)
