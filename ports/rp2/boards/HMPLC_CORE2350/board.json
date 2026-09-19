@@ -1,0 +1,21 @@
+{
+    "deploy": [
+        "../deploy.md"
+    ],
+    "docs": "",
+    "features": [
+        "Dual-core",
+        "External Flash",
+        "External RAM",
+        "USB"
+    ],
+    "images": [],
+    "mcu": "rp2350",
+    "product": "Core2350",
+    "thumbnail": "",
+    "url": "",
+    "variants": {
+        "RISCV": "RISC-V CPU mode"
+    },
+    "vendor": "HMPLC"
+}

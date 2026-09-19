@@ -1,0 +1,5 @@
+# CMake file for HMPLC Core2350
+
+list(APPEND PICO_BOARD_HEADER_DIRS ${MICROPY_BOARD_DIR})
+set(PICO_BOARD "hmplc_core2350")
+set(PICO_PLATFORM "rp2350")
