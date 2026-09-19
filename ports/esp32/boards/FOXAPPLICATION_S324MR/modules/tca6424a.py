@@ -1,35 +1,36 @@
 from machine import I2C
 import micropython
 
+
 class TCA6424A:
     # Register definitions
-    REG_INPUT0    = micropython.const(0x00)
-    REG_INPUT1    = micropython.const(0x01)
-    REG_INPUT2    = micropython.const(0x02)
-    REG_OUTPUT0   = micropython.const(0x04)
-    REG_OUTPUT1   = micropython.const(0x05)
-    REG_OUTPUT2   = micropython.const(0x06)
+    REG_INPUT0 = micropython.const(0x00)
+    REG_INPUT1 = micropython.const(0x01)
+    REG_INPUT2 = micropython.const(0x02)
+    REG_OUTPUT0 = micropython.const(0x04)
+    REG_OUTPUT1 = micropython.const(0x05)
+    REG_OUTPUT2 = micropython.const(0x06)
     REG_POLARITY0 = micropython.const(0x08)
     REG_POLARITY1 = micropython.const(0x09)
     REG_POLARITY2 = micropython.const(0x0A)
-    REG_CONFIG0   = micropython.const(0x0C)
-    REG_CONFIG1   = micropython.const(0x0D)
-    REG_CONFIG2   = micropython.const(0x0E)
-    
+    REG_CONFIG0 = micropython.const(0x0C)
+    REG_CONFIG1 = micropython.const(0x0D)
+    REG_CONFIG2 = micropython.const(0x0E)
+
     # Auto-increment flag for bulk read/write
     AUTO_INCREMENT = micropython.const(0x80)
 
     def __init__(self, i2c, address=34):
         """
         Initialize the TCA6424A driver.
-        
+
         Args:
             i2c: Configured machine.I2C object
             address: I2C address of the device (default 34)
         """
         self.i2c = i2c
         self.address = address
-        
+
         # Shadow registers to minimize read operations for output/config
         # Initializing to default values (Power-up defaults)
         # Config: All 1 (Inputs)
@@ -38,7 +39,7 @@ class TCA6424A:
         self._config = bytearray([0xFF, 0xFF, 0xFF])
         self._output = bytearray([0xFF, 0xFF, 0xFF])
         self._polarity = bytearray([0x00, 0x00, 0x00])
-        
+
         # Read current state from device to sync shadow registers
         try:
             self._read_registers()
@@ -48,11 +49,17 @@ class TCA6424A:
     def _read_registers(self):
         """Read current configuration from device to sync shadow registers."""
         # Read Config
-        self._config = bytearray(self.i2c.readfrom_mem(self.address, self.REG_CONFIG0 | self.AUTO_INCREMENT, 3))
+        self._config = bytearray(
+            self.i2c.readfrom_mem(self.address, self.REG_CONFIG0 | self.AUTO_INCREMENT, 3)
+        )
         # Read Output
-        self._output = bytearray(self.i2c.readfrom_mem(self.address, self.REG_OUTPUT0 | self.AUTO_INCREMENT, 3))
+        self._output = bytearray(
+            self.i2c.readfrom_mem(self.address, self.REG_OUTPUT0 | self.AUTO_INCREMENT, 3)
+        )
         # Read Polarity
-        self._polarity = bytearray(self.i2c.readfrom_mem(self.address, self.REG_POLARITY0 | self.AUTO_INCREMENT, 3))
+        self._polarity = bytearray(
+            self.i2c.readfrom_mem(self.address, self.REG_POLARITY0 | self.AUTO_INCREMENT, 3)
+        )
 
     def _write_block(self, reg_base, data):
         """Write 3 bytes to a register block using auto-increment."""
@@ -104,16 +111,18 @@ class TCA6424A:
         """
         if not 0 <= pin <= 23:
             raise ValueError("Pin must be 0-23")
-        
+
         port_idx = pin // 8
         bit_idx = pin % 8
-        
+
         if mode:
-            self._config[port_idx] |= (1 << bit_idx)
+            self._config[port_idx] |= 1 << bit_idx
         else:
             self._config[port_idx] &= ~(1 << bit_idx)
-            
-        self.i2c.writeto_mem(self.address, (self.REG_CONFIG0 + port_idx), bytes([self._config[port_idx]]))
+
+        self.i2c.writeto_mem(
+            self.address, (self.REG_CONFIG0 + port_idx), bytes([self._config[port_idx]])
+        )
 
     @micropython.native
     def pin_write(self, pin: int, value: int):
@@ -123,16 +132,18 @@ class TCA6424A:
         """
         if not 0 <= pin <= 23:
             raise ValueError("Pin must be 0-23")
-            
+
         port_idx = pin // 8
         bit_idx = pin % 8
-        
+
         if value:
-            self._output[port_idx] |= (1 << bit_idx)
+            self._output[port_idx] |= 1 << bit_idx
         else:
             self._output[port_idx] &= ~(1 << bit_idx)
-            
-        self.i2c.writeto_mem(self.address, (self.REG_OUTPUT0 + port_idx), bytes([self._output[port_idx]]))
+
+        self.i2c.writeto_mem(
+            self.address, (self.REG_OUTPUT0 + port_idx), bytes([self._output[port_idx]])
+        )
 
     @micropython.native
     def pin_read(self, pin: int) -> int:
@@ -142,10 +153,10 @@ class TCA6424A:
         """
         if not 0 <= pin <= 23:
             raise ValueError("Pin must be 0-23")
-            
+
         port_idx = pin // 8
         bit_idx = pin % 8
-        
+
         # Read the single port byte
         val = int(self.i2c.readfrom_mem(self.address, self.REG_INPUT0 + port_idx, 1)[0])
         return (val >> bit_idx) & 1
@@ -155,12 +166,14 @@ class TCA6424A:
         """Toggle the output state of a pin."""
         if not 0 <= pin <= 23:
             raise ValueError("Pin must be 0-23")
-            
+
         port_idx = pin // 8
         bit_idx = pin % 8
-        
-        self._output[port_idx] ^= (1 << bit_idx)
-        self.i2c.writeto_mem(self.address, (self.REG_OUTPUT0 + port_idx), bytes([self._output[port_idx]]))
+
+        self._output[port_idx] ^= 1 << bit_idx
+        self.i2c.writeto_mem(
+            self.address, (self.REG_OUTPUT0 + port_idx), bytes([self._output[port_idx]])
+        )
 
     def get_all_inputs(self):
         """Return all inputs as a single 24-bit integer."""
