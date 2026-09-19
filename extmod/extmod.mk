@@ -5,6 +5,7 @@ SRC_EXTMOD_C += \
 	extmod/machine_adc.c \
 	extmod/machine_adc_block.c \
 	extmod/machine_bitstream.c \
+	extmod/machine_can.c \
 	extmod/machine_i2c.c \
 	extmod/machine_i2c_target.c \
 	extmod/machine_i2s.c \
@@ -55,6 +56,7 @@ SRC_EXTMOD_C += \
 	extmod/network_lwip.c \
 	extmod/network_ninaw10.c \
 	extmod/network_ppp_lwip.c \
+	extmod/network_usbd_ncm.c \
 	extmod/network_wiznet5k.c \
 	extmod/os_dupterm.c \
 	extmod/vfs.c \

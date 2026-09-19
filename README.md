@@ -6,12 +6,9 @@ The MicroPython project
   <img src="https://raw.githubusercontent.com/micropython/micropython/master/logo/upython-with-micro.jpg" alt="MicroPython Logo"/>
 </p>
 
-This is the MicroPython project, which aims to put an implementation
-of Python 3.x on microcontrollers and small embedded systems.
+This is the MicroPython project, an implementation of Python 3.x for
+microcontrollers, embedded systems and other constrained platforms.
 You can find the official website at [micropython.org](http://www.micropython.org).
-
-WARNING: this project is in beta stage and is subject to changes of the
-code-base, including project-wide name changes and API changes.
 
 MicroPython implements the entire Python 3.4 syntax (including exceptions,
 `with`, `yield from`, etc., and additionally `async`/`await` keywords from
@@ -52,6 +49,44 @@ the officially supported board from the
 [original Kickstarter campaign](https://www.kickstarter.com/projects/214379695/micro-python-python-for-microcontrollers),
 see the [schematics and pinouts](http://github.com/micropython/pyboard) and
 [documentation](https://docs.micropython.org/en/latest/pyboard/quickref.html).
+
+MicroPython design values
+-------------------------
+
+"Perfection is achieved, not when there is nothing more to add, but when there
+is nothing left to take away." ―- Antoine de Saint-Exupéry.
+
+For its design and implementation, MicroPython aims to follow a set of values.
+Although not a strict set of rules, these values and principles serve as a
+useful guide for new and seasoned contributors, as well as maintainers.
+
+MicroPython is at heart a combination of "Micro" and "Python": it's about
+resource constrained systems running the Python programming language.  Both of
+these concepts balance off against each other in all parts of MicroPython's
+design and implementation.
+
+The key concepts that focus the development of MicroPython are:
+- Minimalism: do lots with little.
+- Efficiency: engineering, build, execution, storage, power consumption.
+- Consistency: the whole system feels like it was designed at once.
+
+When using MicroPython, the Python language is used as the human interface to a
+system, giving fine control over the entities attached to that system.
+In a hardware setting, MicroPython aims to give the user a bare-metal feeling:
+one should feel like they have complete control over the system, with very
+little between the programmer and the physical world.
+
+MicroPython recognises that systems can be very complex.  The existing Python
+libraries in combination with the MicroPython-specific libraries provide a
+user-friendly way to harness the complexity of a system.
+
+Python language compatibility is very important to MicroPython, and at first
+glance MicroPython should look just like regular Python.  In the first instance,
+most Python scripts should run unchanged on MicroPython, even on devices with very
+tight resources.  Beyond that, there are ways to extend MicroPython if needed to
+better match Python.  The provided built-in modules are an efficient subset of
+the corresponding Python ones, without duplication of functionality, and allow
+extension in Python if needed.
 
 Contributing
 ------------
@@ -132,6 +167,7 @@ still fully supported:
 | [alif](ports/alif)               | Alif Semiconductor Ensemble MCUs (E3, E7)                   |                                                                         |
 | [embed](ports/embed)             | Generates a set of .c/.h files for embedding into a project |                                                                         |
 | [nrf](ports/nrf)                 | Nordic Semiconductor nRF51 and nRF52                        |                                                                         |
+| [psoc-edge](ports/psoc-edge)     | Infineon PSOC™ Edge                                         | [here](https://docs.micropython.org/en/latest/psoc-edge/quickref.html)  |
 | [renesas-ra](ports/renesas-ra)   | Renesas RA family                                           | [here](https://docs.micropython.org/en/latest/renesas-ra/quickref.html) |
 | [webassembly](ports/webassembly) | Emscripten port targeting browsers and NodeJS               |                                                                         |
 | [zephyr](ports/zephyr)           | Zephyr RTOS                                                 | [here](https://docs.micropython.org/en/latest/zephyr/quickref.html)     |
@@ -147,7 +183,6 @@ are built in CI but not regularly tested by the MicroPython maintainers:
 | [cc3200](ports/cc3200)     | Texas Instruments CC3200                                          | [For WiPy](https://docs.micropython.org/en/latest/wipy/quickref.html)   |
 | [esp8266](ports/esp8266)   | Espressif ESP8266 SoC                                             | [here](https://docs.micropython.org/en/latest/esp8266/quickref.html)    |
 | [pic16bit](ports/pic16bit) | Microchip PIC 16-bit                                              |                                                                         |
-| [powerpc](ports/powerpc)   | IBM PowerPC (including Microwatt)                                 |                                                                         |
 
 Additional Ports
 ================
@@ -165,7 +200,7 @@ primarily for maintenance, development and testing:
   to another microcontroller.
 
 - The [qemu](ports/qemu) port is a QEMU-based emulated target for Cortex-A,
-  Cortex-M, RISC-V 32-bit and RISC-V 64-bit architectures.
+  Cortex-M, RISC-V 32-bit, RISC-V 64-bit, and PowerPC 64-bit architectures.
 
 The MicroPython cross-compiler, mpy-cross
 -----------------------------------------

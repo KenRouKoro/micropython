@@ -41,6 +41,7 @@
 #include "lib/littlefs/lfs2_util.h"
 #include "extmod/modmachine.h"
 #include "extmod/modnetwork.h"
+#include "extmod/machine_can.h"
 #include "extmod/vfs.h"
 #include "extmod/vfs_fat.h"
 #include "extmod/vfs_lfs.h"
@@ -419,6 +420,7 @@ void stm32_main(uint32_t reset_mode) {
 
     // Enable some APB peripherals during sleep.
     LL_APB1_GRP1_EnableClockLowPower(LL_APB1_GRP1_PERIPH_ALL); // I2C, I3C, LPTIM, SPI, TIM, UART, WWDG
+    LL_APB1_GRP2_EnableClockLowPower(LL_APB1_GRP2_PERIPH_FDCAN); // FDCAN
     LL_APB2_GRP1_EnableClockLowPower(LL_APB2_GRP1_PERIPH_ALL); // SAI, SPI, TIM, UART
     LL_APB4_GRP1_EnableClockLowPower(LL_APB4_GRP1_PERIPH_ALL); // I2C, LPTIM, LPUART, RTC, SPI
     #endif
@@ -499,6 +501,11 @@ void stm32_main(uint32_t reset_mode) {
     #if MICROPY_HW_ENABLE_RTC
     rtc_init_start(false);
     #endif
+
+    #if MICROPY_PY_MACHINE_MEM_BACKUP
+    machine_mem_backup_init();
+    #endif
+
     uart_init0();
 
     #if defined(MICROPY_HW_UART_REPL)
@@ -607,6 +614,10 @@ soft_reset:
     extint_init0();
     timer_init0();
 
+    #if MICROPY_PY_NETWORK
+    mod_network_init();
+    #endif
+
     #if MICROPY_HW_ENABLE_CAN
     pyb_can_init0();
     #endif
@@ -698,10 +709,6 @@ soft_reset:
     servo_init();
     #endif
 
-    #if MICROPY_PY_NETWORK
-    mod_network_init();
-    #endif
-
     // At this point everything is fully configured and initialised.
 
     // Run main.py (or whatever else a board configures at this stage).
@@ -763,9 +770,15 @@ soft_reset_exit:
     #endif
     #if MICROPY_HW_ENABLE_CAN
     pyb_can_deinit_all();
+    #if MICROPY_PY_MACHINE_CAN
+    machine_can_deinit_all();
     #endif
+    #endif // MICROPY_HW_ENABLE_CAN
     #if MICROPY_HW_ENABLE_DAC
     dac_deinit_all();
+    #endif
+    #if MICROPY_PY_MACHINE_PWM
+    machine_pwm_deinit_all();
     #endif
     #if MICROPY_PY_MACHINE
     machine_deinit();

@@ -95,6 +95,11 @@
 #define MICROPY_PY_LWIP_EXIT
 #endif
 
+#ifndef MICROPY_PY_LWIP_POLL_HOOK
+// Optional port-level hook called if/when LWIP is being polled
+#define MICROPY_PY_LWIP_POLL_HOOK
+#endif
+
 #ifdef MICROPY_PY_LWIP_SLIP
 #include "netif/slipif.h"
 #include "lwip/sio.h"
@@ -360,6 +365,7 @@ static inline bool socket_is_timedout(lwip_socket_obj_t *socket, mp_uint_t ticks
 }
 
 static inline void poll_sockets(void) {
+    MICROPY_PY_LWIP_POLL_HOOK
     mp_event_wait_ms(1);
 }
 
@@ -378,7 +384,7 @@ static void lwip_socket_free_incoming(lwip_socket_obj_t *socket, bool free_queue
                 pbuf_free(socket->incoming.tcp.pbuf);
                 socket->incoming.tcp.pbuf = NULL;
             }
-        } else {
+        } else if (socket->incoming.udp_raw.array != NULL) {
             for (size_t i = 0; i < LWIP_INCOMING_PACKET_QUEUE_LEN; ++i) {
                 lwip_incoming_packet_t *slot = &socket->incoming.udp_raw.array[i];
                 if (slot->pbuf != NULL) {
@@ -457,6 +463,8 @@ static void udp_raw_incoming(lwip_socket_obj_t *socket, struct pbuf *p, const ip
         slot->peer_addr = *addr;
         slot->peer_port = port;
         socket->incoming.udp_raw.iput = (socket->incoming.udp_raw.iput + 1) % LWIP_INCOMING_PACKET_QUEUE_LEN;
+        // Notify user callback of the new packet
+        exec_user_callback(socket);
     }
 }
 
@@ -785,12 +793,13 @@ static mp_uint_t lwip_tcp_send(lwip_socket_obj_t *socket, const byte *buf, mp_ui
     u16_t write_len = MIN(available, len);
 
     // If tcp_write returns ERR_MEM then there's currently not enough memory to
-    // queue the write, so wait and keep trying until it succeeds (with 10s limit).
+    // queue the write, so poll and keep trying until it succeeds (with 10s limit).
     // Note: if the socket is non-blocking then this code will actually block until
     // there's enough memory to do the write, but by this stage we have already
     // committed to being able to write the data.
     err_t err;
-    for (int i = 0; i < 200; ++i) {
+    mp_uint_t write_start = mp_hal_ticks_ms();
+    for (;;) {
         err = tcp_write(socket->pcb.tcp, buf, write_len, TCP_WRITE_FLAG_COPY);
         if (err != ERR_MEM) {
             break;
@@ -799,8 +808,11 @@ static mp_uint_t lwip_tcp_send(lwip_socket_obj_t *socket, const byte *buf, mp_ui
         if (err != ERR_OK) {
             break;
         }
+        if (mp_hal_ticks_ms() - write_start > 10000U) {
+            break;
+        }
         MICROPY_PY_LWIP_EXIT
-        mp_hal_delay_ms(50);
+        poll_sockets();
         MICROPY_PY_LWIP_REENTER
     }
 
@@ -932,7 +944,12 @@ static void lwip_socket_print(const mp_print_t *print, mp_obj_t self_in, mp_prin
 static mp_obj_t lwip_socket_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
     mp_arg_check_num(n_args, n_kw, 0, 4, false);
 
+    // Once the socket is allocated it must be in a valid state to be finalised:
+    // - `incoming.udp_raw.array` is NULL or a valid heap pointer
+    // - `pcb` is NULL or a valid lwIP PCB that has been fully initialised
     lwip_socket_obj_t *socket = mp_obj_malloc_with_finaliser(lwip_socket_obj_t, &lwip_socket_type);
+    socket->pcb.tcp = NULL;
+    socket->incoming.udp_raw.array = NULL;
     socket->timeout = -1;
     socket->recv_offset = 0;
     socket->domain = MOD_NETWORK_AF_INET;
@@ -940,10 +957,16 @@ static mp_obj_t lwip_socket_make_new(const mp_obj_type_t *type, size_t n_args, s
     socket->callback = MP_OBJ_NULL;
     socket->state = STATE_NEW;
 
+    // Parse given arguments.
+    uint8_t socket_proto = 0;
+    (void)socket_proto;
     if (n_args >= 1) {
         socket->domain = mp_obj_get_int(args[0]);
         if (n_args >= 2) {
             socket->type = mp_obj_get_int(args[1]);
+            if (n_args >= 3) {
+                socket_proto = mp_obj_get_int(args[2]);
+            }
         }
     }
 
@@ -957,18 +980,17 @@ static mp_obj_t lwip_socket_make_new(const mp_obj_type_t *type, size_t n_args, s
         #if MICROPY_PY_LWIP_SOCK_RAW
         case MOD_NETWORK_SOCK_RAW:
         #endif
+            socket->incoming.udp_raw.array = m_new0(lwip_incoming_packet_t, LWIP_INCOMING_PACKET_QUEUE_LEN);
             if (socket->type == MOD_NETWORK_SOCK_DGRAM) {
                 socket->pcb.udp = udp_new();
             }
             #if MICROPY_PY_LWIP_SOCK_RAW
             else {
-                mp_int_t proto = n_args <= 2 ? 0 : mp_obj_get_int(args[2]);
-                socket->pcb.raw = raw_new(proto);
+                socket->pcb.raw = raw_new(socket_proto);
             }
             #endif
             socket->incoming.udp_raw.iget = 0;
             socket->incoming.udp_raw.iput = 0;
-            socket->incoming.udp_raw.array = m_new0(lwip_incoming_packet_t, LWIP_INCOMING_PACKET_QUEUE_LEN);
             break;
         default:
             mp_raise_OSError(MP_EINVAL);
@@ -1579,13 +1601,12 @@ static mp_uint_t lwip_socket_ioctl(mp_obj_t self_in, mp_uint_t request, uintptr_
     }
 
     lwip_socket_obj_t *socket = MP_OBJ_TO_PTR(self_in);
-    mp_uint_t ret;
+    mp_uint_t ret = 0;
 
     MICROPY_PY_LWIP_ENTER
 
     if (request == MP_STREAM_POLL) {
         uintptr_t flags = arg;
-        ret = 0;
 
         if (flags & MP_STREAM_POLL_RD) {
             if (socket->state == STATE_LISTENING) {
@@ -1691,7 +1712,6 @@ static mp_uint_t lwip_socket_ioctl(mp_obj_t self_in, mp_uint_t request, uintptr_
 
         socket->pcb.tcp = NULL;
         socket->state = _ERR_BADF;
-        ret = 0;
     }
 
     MICROPY_PY_LWIP_EXIT

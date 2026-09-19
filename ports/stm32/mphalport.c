@@ -7,6 +7,7 @@
 #include "extmod/misc.h"
 #include "usb.h"
 #include "uart.h"
+#include "rng.h"
 
 #if MICROPY_HW_TINYUSB_STACK
 #include "shared/tinyusb/mp_usbd_cdc.h"
@@ -74,7 +75,7 @@ MP_WEAK int mp_hal_stdin_rx_chr(void) {
             return c;
         }
         #endif
-        MICROPY_EVENT_POLL_HOOK
+        mp_event_wait_indefinite();
     }
 }
 
@@ -220,5 +221,18 @@ void mp_hal_get_mac_ascii(int idx, size_t chr_off, size_t chr_len, char *dest) {
         *dest++ = hexchr[mac[chr_off >> 1] >> (4 * (1 - (chr_off & 1))) & 0xf];
     }
 }
+
+#if MICROPY_HW_ENABLE_RNG
+void mp_hal_get_random(size_t n, uint8_t *buf) {
+    uint32_t val = 0;
+    for (int i = 0; i < n; i++) {
+        if ((i & 3) == 0) {
+            val = mp_hal_get_hw_random_u32();
+        }
+        buf[i] = val;
+        val >>= 8;
+    }
+}
+#endif
 
 MP_REGISTER_ROOT_POINTER(struct _machine_uart_obj_t *pyb_stdio_uart);

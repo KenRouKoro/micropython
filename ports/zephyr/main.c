@@ -41,6 +41,17 @@
 
 #include <zephyr/storage/flash_map.h>
 
+#ifdef CONFIG_CONSOLE_SUBSYS
+#include <zephyr/console/console.h>
+
+#if CONFIG_CONSOLE_GETCHAR_BUFSIZE < 512
+#warning A Console getchar buffer size over 512 bytes is recommended to handle fast input
+#endif
+
+#else
+#include "src/zephyr_getchar.h"
+#endif
+
 #include "py/mperrno.h"
 #include "py/builtin.h"
 #include "py/compile.h"
@@ -83,7 +94,7 @@ DT_FOREACH_STATUS_OKAY(micropython_heap, MICROPY_HEAP_DEFINE)
 #include "modmachine.h"
 #include "modzephyr.h"
 
-static char heap[MICROPY_HEAP_SIZE];
+static __noinit char heap[MICROPY_HEAP_SIZE];
 
 #if defined(CONFIG_USB_DEVICE_STACK_NEXT)
 extern int mp_usbd_init(void);
@@ -116,7 +127,17 @@ void init_zephyr(void) {
     #endif
 }
 
-int real_main(void) {
+int main(void) {
+    /* Initialize terminal device */
+    #ifdef CONFIG_CONSOLE_SUBSYS
+    console_init();
+    /* Always immediately hand control back to micropython */
+    console_set_rx_timeout(K_NO_WAIT);
+    console_set_tx_timeout(K_NO_WAIT);
+    #else
+    zephyr_getchar_init();
+    #endif
+
     #if MICROPY_PY_THREAD
     struct k_thread *z_thread = (struct k_thread *)k_current_get();
     mp_thread_init((void *)z_thread->stack_info.start, z_thread->stack_info.size / sizeof(uintptr_t));

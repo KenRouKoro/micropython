@@ -112,7 +112,7 @@ static inline void mp_hal_delay_us(mp_uint_t us) {
     { if (err_flag == -1) \
       { mp_raise_OSError(error_val); } }
 
-void mp_hal_get_random(size_t n, void *buf);
+void mp_hal_get_random(size_t n, uint8_t *buf);
 
 #if MICROPY_PY_BLUETOOTH
 enum {
@@ -120,6 +120,15 @@ enum {
 };
 
 void mp_hal_get_mac(int idx, uint8_t buf[6]);
+#endif
+
+#if defined(__linux__) && (defined(__ARM_32BIT_STATE) || defined(__riscv))
+#if __has_builtin(__builtin___clear_cache)
+#define MP_HAL_CLEAN_DCACHE(fun_data, fun_len) \
+    do { \
+        __builtin___clear_cache((void *)fun_data, (char *)fun_data + fun_len); \
+    } while (0)
+#endif
 #endif
 
 // Global variable to control compile-only mode.
