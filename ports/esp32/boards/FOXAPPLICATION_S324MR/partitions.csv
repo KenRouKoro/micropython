@@ -1,0 +1,13 @@
+# Partition table for the FoxApplication S324MR, which has 16MiB of flash.
+#
+# MicroPython does not reserve an entry for the filesystem: on boot it sizes
+# the SPI flash and creates a "vfs" partition covering everything between the
+# end of the last partition defined here and the end of flash (see
+# ports/esp32/main.c), so this table only needs to cover the application.
+#
+# Notes: the offset of the partition table itself is set in
+# $IDF_PATH/components/partition_table/Kconfig.projbuild.
+# Name,     Type, SubType, Offset,   Size,     Flags
+nvs,        data, nvs,     0x9000,   0x6000,
+phy_init,   data, phy,     0xf000,   0x1000,
+factory,    app,  factory, 0x10000,  0x400000,
